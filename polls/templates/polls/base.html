@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}PollStream{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<!-- Header -->
+<header class="bg-white border-b shadow-sm">
+  <div class="max-w-[1400px] mx-auto px-8 h-16 flex items-center justify-between">
+    <div class="font-bold text-indigo-600 text-2xl">PollStream</div>
+
+    <nav class="flex items-center gap-6">
+      <a href="{% url 'index' %}" class="text-base text-gray-700 hover:text-indigo-600 transition">Home</a>
+      <a href="#" class="text-base text-gray-700 hover:text-indigo-600 transition">About Us</a>
+      <div class="flex items-center gap-3 ml-4">
+      <a href="{% url 'login' %}" class="text-base text-gray-700 hover:text-indigo-600 transition">Login</a>
+      <a href="{% url 'register' %}" class="bg-indigo-600 text-white text-base px-5 py-2 rounded-lg hover:bg-indigo-700 transition">Register</a>
+        </a>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<!-- Page content -->
+<main class="max-w-full mx-auto px-8 py-6">
+  {% block content %}{% endblock %}
+</main>
+
+<script src="{% static 'polls/js/base.js' %}" defer></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
+
