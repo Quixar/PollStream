@@ -1,0 +1,39 @@
+{% extends "polls/base.html" %}
+{% load static %}
+
+{% block title %}Профиль — PollStream{% endblock %}
+
+{% block content %}
+
+<!-- HEADER -->
+<div class="flex justify-between items-center h-[64px] mb-6">
+  <h1 class="text-3xl font-semibold">Мой профиль</h1>
+</div>
+
+<!-- Profile Card -->
+<div class="bg-white border rounded-xl p-8 max-w-2xl">
+  <div class="flex items-center gap-6 mb-6">
+    <div class="w-20 h-20 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl font-bold">
+      {{ user.username.0|upper }}
+    </div>
+    <div>
+      <h2 class="text-2xl font-semibold text-gray-900">{{ user.username }}</h2>
+      <p class="text-gray-600">{{ user.email }}</p>
+    </div>
+  </div>
+
+  <div class="border-t pt-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-gray-50 rounded-lg p-4">
+        <div class="text-2xl font-bold text-indigo-600">{{ user.surveys_count }}</div>
+        <div class="text-gray-600">Созданных анкет</div>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-4">
+        <div class="text-2xl font-bold text-indigo-600">0</div>
+        <div class="text-gray-600">Активных анкет</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

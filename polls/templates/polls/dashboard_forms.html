@@ -1,0 +1,23 @@
+{% extends 'polls/dashboard_base.html' %}
+
+{% block title %}Управление анкетами - PollStream{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h1 class="text-3xl font-bold text-gray-900">Управление анкетами</h1>
+        <a href="{% url 'create_survey' %}" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition">Создать анкету</a>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <h3 class="mt-4 text-lg font-medium text-gray-900">Нет анкет</h3>
+            <p class="mt-2 text-sm text-gray-600">Создайте свою первую анкету, чтобы начать собирать ответы</p>
+            <a href="{% url 'create_survey' %}" class="mt-4 inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition">Создать анкету</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

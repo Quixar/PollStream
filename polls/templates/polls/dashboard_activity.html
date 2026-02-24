@@ -1,0 +1,36 @@
+{% extends 'polls/dashboard_base.html' %}
+
+{% block title %}Активность участников - PollStream{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <h1 class="text-3xl font-bold text-gray-900">Активность участников</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Всего участников</h3>
+            <p class="text-3xl font-bold text-indigo-600">0</p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Активны сегодня</h3>
+            <p class="text-3xl font-bold text-green-600">0</p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Завершенные анкеты</h3>
+            <p class="text-3xl font-bold text-blue-600">0</p>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">История активности</h2>
+        <div class="text-center py-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="mt-4 text-gray-600">Нет активности участников</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
