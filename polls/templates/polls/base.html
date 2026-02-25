@@ -18,10 +18,28 @@
     <nav class="flex items-center gap-6">
       <a href="{% url 'index' %}" class="text-base text-gray-700 hover:text-indigo-600 transition">Home</a>
       <a href="#" class="text-base text-gray-700 hover:text-indigo-600 transition">About Us</a>
-      <div class="flex items-center gap-3 ml-4">
-      <a href="{% url 'login' %}" class="text-base text-gray-700 hover:text-indigo-600 transition">Login</a>
-      <a href="{% url 'register' %}" class="bg-indigo-600 text-white text-base px-5 py-2 rounded-lg hover:bg-indigo-700 transition">Register</a>
-        </a>
+      <div class="flex items-center gap-3 ml-4 relative">
+        <button type="button" class="flex items-center gap-3 cursor-pointer" id="user-menu-button">
+          <div class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+            J
+          </div>
+          <span class="text-base text-gray-700">John Doe</span>
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </button>
+        <div class="absolute top-full right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden" id="user-dropdown">
+          <div class="py-2">
+            <a href="{% url 'index' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Главная страница</a>
+            <a href="{% url 'dashboard_profile' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Мой аккаунт</a>
+            <a href="{% url 'dashboard_team' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Члены команды</a>
+            <a href="{% url 'dashboard_forms' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Управление анкетами</a>
+            <a href="{% url 'dashboard_activity' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Активность участников</a>
+            <a href="{% url 'dashboard_settings' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Настройки команды</a>
+            <div class="border-t my-1"></div>
+            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Sign out</a>
+          </div>
+        </div>
       </div>
     </nav>
   </div>

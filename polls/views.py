@@ -141,3 +141,36 @@ def login_view(request):
 
 def register_view(request):
     return render(request, 'polls/register.html')
+
+def profile(request):
+    # Mock data for profile page
+    user_data = {
+        'username': 'John Doe',
+        'email': 'john.doe@example.com',
+        'surveys_count': 5
+    }
+    return render(request, 'polls/profile.html', {'user': user_data})
+
+# Dashboard views
+def dashboard_home(request):
+    return render(request, 'polls/dashboard_home.html')
+
+
+def dashboard_profile(request):
+    return render(request, 'polls/dashboard_profile.html')
+
+
+def dashboard_team(request):
+    return render(request, 'polls/dashboard_team.html')
+
+
+def dashboard_forms(request):
+    return render(request, 'polls/dashboard_forms.html')
+
+
+def dashboard_activity(request):
+    return render(request, 'polls/dashboard_activity.html')
+
+
+def dashboard_settings(request):
+    return render(request, 'polls/dashboard_settings.html')
