@@ -93,9 +93,9 @@
                                 </svg>
                             </button>
                         </div>
-                        <a href="#" class="text-sm font-medium text-gray-600 hover:text-indigo-600 transition">
-                            Редактировать
-                        </a>
+                       <a href="{% url 'edit_survey' survey.id %}" class="text-sm font-medium text-gray-600 hover:text-indigo-600 transition">
+                           Редактировать
+                       </a>
                     </div>
                 </div>
             {% endfor %}

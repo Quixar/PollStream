@@ -11,15 +11,17 @@
 <!-- Top Navigation Bar -->
 <div class="fixed top-0 left-0 right-0 bg-white border-b z-40 h-20 flex items-center justify-between px-8">
   <!-- Left: Breadcrumbs -->
-  <div class="flex items-center gap-2 text-base"
-       data-survey-name="{{ survey_name|default:'Новый опрос' }}"
-       data-template-state="{{ template_state_json|default:''|escapejs }}">
-    <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-    </svg>
-    <a href="{% url 'index' %}" class="text-gray-600 hover:text-indigo-600 transition">Главная страница</a>
-    <span class="text-gray-400">/</span>
-    <span class="text-gray-900 font-semibold">{{ survey_name|default:"Новый опрос" }}</span>
+    <div class="flex items-center gap-2 text-base"
+         id="survey-data-container"
+         data-survey-id="{{ survey_id|default:'' }}"
+         data-survey-name="{{ survey_name|default:'Новый опрос' }}"
+         data-survey-type="{{ survey_type|default:'custom' }}"
+         data-template-state='{{ template_state_json|safe|default:"{}" }}'>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <a href="{% url 'index' %}" class="text-gray-600 hover:text-indigo-600 transition">Главная страница</a>
+        <span class="text-gray-400">/</span>
+        <span class="text-gray-900 font-semibold">{{ survey_name|default:"Новый опрос" }}</span>
   </div>
 
   <!-- Center: Steps -->

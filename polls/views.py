@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import JsonResponse 
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -111,24 +111,41 @@ def index(request):
     }
     return render(request, 'polls/index.html', context)
 
+
 def save_survey(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            survey_name = data.get('survey_name', 'Новый опрос')
-            survey_type = data.get('survey_type') or 'custom'
-            state_json = data.get('state_json', {})
+            survey_id = data.get('survey_id')
 
-            survey = Survey.objects.create(
-                name=survey_name,
-                survey_type=survey_type,
-                state_json=state_json
-            )
+            if survey_id:
+                survey = Survey.objects.get(id=survey_id)
+                survey.name = data.get('survey_name', survey.name)
+                survey.state_json = data.get('state_json', survey.state_json)
+                survey.save()
+            else:
+                survey = Survey.objects.create(
+                    name=data.get('survey_name', 'Новый опрос'),
+                    survey_type=data.get('survey_type', 'custom'),
+                    state_json=data.get('state_json', {})
+                )
+
             return JsonResponse({'status': 'success', 'survey_id': survey.id})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)})
-            
-    return JsonResponse({'status': 'error', 'message': 'Invalid request'})
+
+
+def edit_survey(request, survey_id):
+    survey = get_object_or_404(Survey, id=survey_id)
+    state_json_string = json.dumps(survey.state_json, ensure_ascii=False)
+
+    context = {
+        'survey_id': survey.id,
+        'survey_name': survey.name,
+        'survey_type': survey.survey_type,
+        'template_state_json': state_json_string,
+    }
+    return render(request, 'polls/create_survey.html', context)
 
 @ensure_csrf_cookie
 def create_survey(request):
