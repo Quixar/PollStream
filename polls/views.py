@@ -1,5 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.http import JsonResponse 
+from django.views.decorators.csrf import ensure_csrf_cookie
+from .models import Survey
 
 import json
 from uuid import uuid4
@@ -10,10 +13,6 @@ def _uid():
 
 
 def get_survey_templates():
-    """
-    Простые шаблоны анкет (минимум 3), без ИИ.
-    Структура вопросов совместима с survey_builder.js (state.pages[].questions[]).
-    """
     return [
         {
             "id": "feedback_form",
@@ -63,7 +62,6 @@ def get_survey_templates():
 
 
 def build_state_from_template(template_def):
-    # Приводим к форме state, ожидаемой survey_builder.js
     pages = []
     for p in template_def.get("pages", []):
         page_id = _uid()
@@ -99,20 +97,41 @@ def index(request):
         survey_type = request.POST.get('survey_type', 'custom')
         template_id = request.POST.get('template_id', '') if survey_type == 'template' else ''
         if survey_name:
-            # Redirect to create survey page with name and type as query parameters
             from urllib.parse import urlencode
             payload = {'survey_name': survey_name, 'survey_type': survey_type}
             if template_id:
                 payload['template_id'] = template_id
             params = urlencode(payload)
             return redirect(f'/create-survey/?{params}')
+            
+    surveys = Survey.objects.all().order_by('-created_at')
     context = {
         "survey_templates": get_survey_templates(),
+        "surveys": surveys, 
     }
     return render(request, 'polls/index.html', context)
 
+def save_survey(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            survey_name = data.get('survey_name', 'Новый опрос')
+            survey_type = data.get('survey_type') or 'custom'
+            state_json = data.get('state_json', {})
+
+            survey = Survey.objects.create(
+                name=survey_name,
+                survey_type=survey_type,
+                state_json=state_json
+            )
+            return JsonResponse({'status': 'success', 'survey_id': survey.id})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+            
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'})
+
+@ensure_csrf_cookie
 def create_survey(request):
-    # Get survey name and type from GET parameters
     survey_name = request.GET.get('survey_name', 'Новый опрос')
     survey_type = request.GET.get('survey_type', 'custom')
     template_id = request.GET.get('template_id', '')
@@ -124,7 +143,6 @@ def create_survey(request):
         if tpl:
             state = build_state_from_template(tpl)
             template_state_json = json.dumps(state, ensure_ascii=False)
-            # Если пользователь не указал имя (или оставил дефолт), подставим дефолт шаблона
             if not survey_name or survey_name == 'Новый опрос':
                 survey_name = tpl.get("default_name") or survey_name
     
@@ -143,7 +161,6 @@ def register_view(request):
     return render(request, 'polls/register.html')
 
 def profile(request):
-    # Mock data for profile page
     user_data = {
         'username': 'John Doe',
         'email': 'john.doe@example.com',

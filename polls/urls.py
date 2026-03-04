@@ -15,4 +15,5 @@ urlpatterns = [
     path('dashboard/forms/', views.dashboard_forms, name='dashboard_forms'),
     path('dashboard/activity/', views.dashboard_activity, name='dashboard_activity'),
     path('dashboard/settings/', views.dashboard_settings, name='dashboard_settings'),
+    path('save-survey/', views.save_survey, name='save_survey'),
 ]

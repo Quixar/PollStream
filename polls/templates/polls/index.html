@@ -9,7 +9,6 @@
 
 {% block content %}
 
-<!-- HEADER (общий для sidebar и content) -->
 <div class="flex justify-between items-center h-[64px] mb-6">
   <h1 class="text-3xl font-semibold">Главная страница</h1>
 
@@ -20,9 +19,7 @@
 
 <div class="flex gap-9 items-stretch">
 
-  <!-- Sidebar -->
   <aside class="w-80 bg-white border rounded-xl p-6">
-
     <nav class="mb-6">
       <ul class="space-y-2 text-base">
         <li>
@@ -31,7 +28,7 @@
           </a>
         </li>
         <li>
-          <a class="block px-4 py-3 rounded-lg hover:bg-gray-100">
+          <a class="block px-4 py-3 rounded-lg hover:bg-gray-100 cursor-pointer">
             Общие анкеты
           </a>
         </li>
@@ -39,89 +36,98 @@
     </nav>
 
     <div class="border-t pt-5">
-      <span class="block text-base font-semibold text-gray-700 mb-3">
-        Папки
-      </span>
-
-      <button class="w-full border rounded-lg py-2 text-base hover:bg-gray-100">
-        +
-      </button>
+      <span class="block text-base font-semibold text-gray-700 mb-3">Папки</span>
+      <button class="w-full border rounded-lg py-2 text-base hover:bg-gray-100">+</button>
     </div>
-
   </aside>
 
-  <!-- Content -->
   <section class="flex-1">
+    <div class="bg-white border rounded-xl p-10 flex flex-col min-h-[600px]">
 
-    <!-- MAIN CONTENT -->
-    <div class="bg-white border rounded-xl p-10 flex flex-col">
-
-      <!-- Фильтры сверху -->
-      <div class="flex justify-end gap-3 mb-6 pb-6 border-b">
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-gray-600">Сортировка:</span>
-          <select class="border border-gray-300 rounded-lg px-4 py-2 text-sm bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-            <option>Дата создания</option>
-            <option>По алфавиту</option>
-          </select>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-gray-600">Вид:</span>
-          <select class="border border-gray-300 rounded-lg px-4 py-2 text-sm bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-            <option>Плитки</option>
-            <option>Список</option>
-          </select>
+      <div class="flex justify-between items-center mb-6 pb-6 border-b">
+        <h2 class="text-2xl font-bold text-gray-900">Мои опросы</h2>
+        <div class="flex gap-3">
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-600">Сортировка:</span>
+              <select class="border border-gray-300 rounded-lg px-4 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                <option>Дата создания</option>
+                <option>По алфавиту</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-600">Вид:</span>
+              <select class="border border-gray-300 rounded-lg px-4 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                <option>Плитки</option>
+                <option>Список</option>
+              </select>
+            </div>
         </div>
       </div>
 
-      <!-- Контент -->
       <div class="flex-1">
         {% if surveys %}
-          <div class="grid grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for survey in surveys %}
-              <div class="survey-card border rounded-lg p-6 hover:shadow-md transition">
-                <h3 class="text-lg font-semibold mb-2">
-                  {{ survey.title }}
-                </h3>
-                <p class="text-base text-gray-500">
-                  {{ survey.description }}
-                </p>
-              </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col hover:shadow-lg transition duration-200 group">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xl
+                            {% if survey.survey_type == 'template' %}bg-purple-100 text-purple-600{% else %}bg-green-100 text-green-600{% endif %}">
+                            {{ survey.name|slice:":1"|upper }}
+                        </div>
+                        <span class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">Активен</span>
+                    </div>
+
+                    <h3 class="text-lg font-semibold text-gray-900 mb-1 group-hover:text-indigo-600 transition truncate" title="{{ survey.name }}">
+                        {{ survey.name }}
+                    </h3>
+
+                    <p class="text-sm text-gray-500 mb-6">
+                        Создано: {{ survey.created_at|date:"d.m.Y в H:i" }}
+                    </p>
+
+                    <div class="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
+                        <div class="flex gap-2">
+                            <button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Копировать ссылку">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <a href="#" class="text-sm font-medium text-gray-600 hover:text-indigo-600 transition">
+                            Редактировать
+                        </a>
+                    </div>
+                </div>
             {% endfor %}
           </div>
         {% else %}
-          <p class="text-base text-gray-500">
-            Нет анкет
-          </p>
+          <div class="h-full flex flex-col items-center justify-center text-center py-20">
+              <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                  <svg class="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-1">У вас пока нет опросов</h3>
+              <p class="text-base text-gray-500 max-w-md">Создайте свой первый опрос с нуля или воспользуйтесь шаблоном.</p>
+          </div>
         {% endif %}
       </div>
-
     </div>
-
   </section>
-
 </div>
 
-<!-- Modal 1: Choose Survey Type -->
 <div id="modalOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-  
   <div id="modalContent" class="bg-white rounded-2xl max-w-4xl w-full p-10 relative">
-    
     <button id="closeModal" class="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
       </svg>
     </button>
-
     <div class="text-center mb-8">
       <p class="text-sm text-gray-500 mb-2">Добро пожаловать в PollStream</p>
       <h2 class="text-3xl font-semibold text-gray-900">Создать анкету</h2>
     </div>
-
     <div class="grid grid-cols-2 gap-6">
-      
-      <!-- Custom Survey -->
       <button id="openCustomSurvey" class="group bg-white border-2 border-gray-200 rounded-xl p-8 hover:border-indigo-500 hover:shadow-lg transition-all duration-200">
         <div class="flex flex-col items-center text-center">
           <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-indigo-500 transition-colors">
@@ -133,8 +139,6 @@
           <p class="text-sm text-gray-500">Создайте новую анкету с нуля со своими вопросами.</p>
         </div>
       </button>
-
-      <!-- Template Survey -->
       <button id="openTemplateSurvey" class="group bg-white border-2 border-gray-200 rounded-xl p-8 hover:border-indigo-500 hover:shadow-lg transition-all duration-200">
         <div class="flex flex-col items-center text-center">
           <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-500 transition-colors">
@@ -146,78 +150,43 @@
           <p class="text-sm text-gray-500">Используйте готовый шаблон анкеты.</p>
         </div>
       </button>
-
     </div>
-
   </div>
-
 </div>
 
-<!-- Modal 2: Survey Name -->
 <div id="nameModalOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-  
   <div id="nameModalContent" class="bg-white rounded-2xl max-w-lg w-full p-8 relative">
-    
     <button id="closeNameModal" class="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
       </svg>
     </button>
-
     <div class="mb-6">
       <h2 class="text-2xl font-semibold text-gray-900 mb-2">Название анкеты</h2>
       <p class="text-sm text-gray-500">Введите название для вашей новой анкеты</p>
     </div>
-
     <form id="surveyNameForm" method="POST" action="{% url 'index' %}">
       {% csrf_token %}
       <input type="hidden" name="survey_type" id="hiddenSurveyType" value="custom">
       <input type="hidden" name="template_id" id="hiddenTemplateId" value="">
       <div class="mb-6">
         <label for="survey_name" class="block text-sm font-medium text-gray-700 mb-2">Название</label>
-        <input 
-          type="text" 
-          id="survey_name"
-          name="survey_name" 
-          placeholder="Новый опрос"
-          class="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" 
-          required
-        >
+        <input type="text" id="survey_name" name="survey_name" placeholder="Новый опрос" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-indigo-500 outline-none" required>
       </div>
-
-      <!-- Template picker (only for survey_type=template) -->
       <div id="templatePicker" class="mb-6 hidden">
         <label for="template_select" class="block text-sm font-medium text-gray-700 mb-2">Шаблон</label>
-        <select
-          id="template_select"
-          class="w-full px-4 py-3 border border-gray-300 rounded-lg text-base bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        >
+        <select id="template_select" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-base bg-white outline-none">
           {% for tpl in survey_templates %}
             <option value="{{ tpl.id }}">{{ tpl.title }}</option>
           {% endfor %}
         </select>
-        <p class="text-sm text-gray-500 mt-2">Вопросы будут предзаполнены на основе выбранного шаблона.</p>
       </div>
-
       <div class="flex gap-3 justify-end">
-        <button 
-          type="button" 
-          id="backButton"
-          class="px-6 py-3 border border-gray-300 rounded-lg text-base font-medium text-gray-700 hover:bg-gray-50 transition"
-        >
-          Назад
-        </button>
-        <button 
-          type="submit"
-          class="px-6 py-3 bg-indigo-600 text-white rounded-lg text-base font-semibold hover:bg-indigo-700 transition"
-        >
-          Продолжить
-        </button>
+        <button type="button" id="backButton" class="px-6 py-3 border border-gray-300 rounded-lg text-base font-medium text-gray-700 hover:bg-gray-50">Назад</button>
+        <button type="submit" class="px-6 py-3 bg-indigo-600 text-white rounded-lg text-base font-semibold hover:bg-indigo-700">Продолжить</button>
       </div>
     </form>
-
   </div>
-
 </div>
 
 {% endblock %}

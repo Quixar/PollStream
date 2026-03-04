@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Survey builder: local state + localStorage persistence (MVP) ---
 
-  // Get survey name from data attribute or window variable
   const surveyNameEl = document.querySelector('[data-survey-name]');
   const surveyName = surveyNameEl
     ? surveyNameEl.getAttribute('data-survey-name')
@@ -22,6 +21,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const addQuestionOverlay = document.getElementById('addQuestionOverlay');
   const closeAddQuestionBtn = document.getElementById('closeAddQuestion');
+  
+  // Элементы сохранения
+  const saveBtn = document.getElementById('saveSurveyBtn');
+  const saveBtnText = document.getElementById('saveBtnText');
 
   function uid() {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -66,13 +69,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return map[type] || type;
   }
 
-  let state = {
+  // Делаем state глобальным для доступа из HTML при сохранении
+  window.state = {
     pages: [],
     currentPageId: null,
   };
 
   function getCurrentPage() {
-    return state.pages.find(p => p.id === state.currentPageId);
+    return window.state.pages.find(p => p.id === window.state.currentPageId);
   }
 
   function getCurrentPageQuestions() {
@@ -82,30 +86,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function saveState() {
     try {
-      localStorage.setItem(storageKey, JSON.stringify(state));
+      localStorage.setItem(storageKey, JSON.stringify(window.state));
     } catch (e) {
       // ignore
     }
   }
 
   function bootstrapFromTemplateIfNeeded() {
-    // Предзаполняем только если state ещё не сохранён для этого surveyName
-    // (не ломаем существующее поведение восстановления из localStorage).
     if (!templateStateRaw) return;
     try {
       const alreadySaved = localStorage.getItem(storageKey);
       if (alreadySaved) return;
     } catch (e) {
-      // если localStorage недоступен — просто не бустрепаем
       return;
     }
 
     try {
       const parsed = JSON.parse(templateStateRaw);
       if (parsed && Array.isArray(parsed.pages)) {
-        state = parsed;
-        if (!state.currentPageId && state.pages.length > 0) {
-          state.currentPageId = state.pages[0].id;
+        window.state = parsed;
+        if (!window.state.currentPageId && window.state.pages.length > 0) {
+          window.state.currentPageId = window.state.pages[0].id;
         }
         saveState();
       }
@@ -118,27 +119,25 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const raw = localStorage.getItem(storageKey);
       if (!raw) {
-        // Initialize with first page
         addPage('Главная страница', true);
         return;
       }
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.pages)) {
-        state = parsed;
-        if (state.pages.length === 0) {
+        window.state = parsed;
+        if (window.state.pages.length === 0) {
           addPage('Главная страница', true);
-        } else if (!state.currentPageId && state.pages.length > 0) {
-          state.currentPageId = state.pages[0].id;
+        } else if (!window.state.currentPageId && window.state.pages.length > 0) {
+          window.state.currentPageId = window.state.pages[0].id;
         }
       } else {
-        // Migrate old format
         if (parsed && Array.isArray(parsed.questions)) {
           const firstPage = {
             id: uid(),
             title: 'Главная страница',
             questions: parsed.questions
           };
-          state = {
+          window.state = {
             pages: [firstPage],
             currentPageId: firstPage.id
           };
@@ -155,12 +154,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function addPage(title, setAsCurrent = false) {
     const page = {
       id: uid(),
-      title: title || `Страница ${state.pages.length + 1}`,
+      title: title || `Страница ${window.state.pages.length + 1}`,
       questions: []
     };
-    state.pages.push(page);
-    if (setAsCurrent || state.pages.length === 1) {
-      state.currentPageId = page.id;
+    window.state.pages.push(page);
+    if (setAsCurrent || window.state.pages.length === 1) {
+      window.state.currentPageId = page.id;
     }
     saveState();
     renderPages();
@@ -168,15 +167,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function deletePage(pageId) {
-    if (state.pages.length <= 1) {
+    if (window.state.pages.length <= 1) {
       alert('Нельзя удалить последнюю страницу');
       return;
     }
-    const index = state.pages.findIndex(p => p.id === pageId);
+    const index = window.state.pages.findIndex(p => p.id === pageId);
     if (index === -1) return;
-    state.pages.splice(index, 1);
-    if (state.currentPageId === pageId) {
-      state.currentPageId = state.pages[0].id;
+    window.state.pages.splice(index, 1);
+    if (window.state.currentPageId === pageId) {
+      window.state.currentPageId = window.state.pages[0].id;
     }
     saveState();
     renderPages();
@@ -184,14 +183,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function switchPage(pageId) {
-    state.currentPageId = pageId;
+    window.state.currentPageId = pageId;
     saveState();
     renderPages();
     renderQuestions();
   }
 
   function updatePageTitle(pageId, newTitle) {
-    const page = state.pages.find(p => p.id === pageId);
+    const page = window.state.pages.find(p => p.id === pageId);
     if (page) {
       page.title = newTitle;
       saveState();
@@ -202,8 +201,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderPages() {
     if (!pagesList) return;
     pagesList.innerHTML = '';
-    state.pages.forEach((page, idx) => {
-      const isActive = page.id === state.currentPageId;
+    window.state.pages.forEach((page, idx) => {
+      const isActive = page.id === window.state.currentPageId;
       const pageEl = document.createElement('div');
       pageEl.className = `border-2 rounded-lg p-4 bg-white cursor-pointer transition ${isActive ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`;
       pageEl.innerHTML = `
@@ -220,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
               </svg>
             </button>
-            ${state.pages.length > 1 ? `
+            ${window.state.pages.length > 1 ? `
               <button class="delete-page-btn text-red-500 hover:text-red-700 p-1" data-page-id="${page.id}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -263,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!questionsContainer) return;
     questionsContainer.innerHTML = '';
     const questions = getCurrentPageQuestions();
+    
     questions.forEach((q, idx) => {
       const el = document.createElement('div');
       el.className = "bg-white border rounded-2xl p-6 shadow-sm";
@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
                    value="${escHtml(q.title)}" />
           </div>
           <div class="flex items-center gap-2">
-            <label class="flex items-center gap-2 text-sm text-gray-700 px-3 py-2 rounded-xl hover:bg-gray-50">
+            <label class="flex items-center gap-2 text-sm text-gray-700 px-3 py-2 rounded-xl hover:bg-gray-50 cursor-pointer">
               <input type="checkbox" class="question-required w-4 h-4" ${q.required ? 'checked' : ''} />
               Обязательный
             </label>
@@ -344,12 +344,28 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         body.innerHTML = `
           <textarea class="w-full min-h-[96px] px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                    placeholder="Текстовый ответ..."></textarea>
+                    placeholder="Текстовый ответ..." disabled></textarea>
         `;
       }
 
       questionsContainer.appendChild(el);
     });
+
+    // ДОБАВЛЯЕМ КНОПКУ "ДОБАВИТЬ ВОПРОС" ВНИЗУ СПИСКА, если вопросы уже есть
+    if (questions.length > 0) {
+      const addMoreDiv = document.createElement('div');
+      addMoreDiv.className = "flex justify-center mt-6 mb-4";
+      addMoreDiv.innerHTML = `
+        <button type="button" class="persistent-add-btn flex items-center gap-2 px-6 py-3 bg-white border-2 border-dashed border-gray-300 text-gray-600 rounded-xl hover:border-indigo-500 hover:text-indigo-600 font-medium transition shadow-sm hover:shadow">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+          Добавить еще вопрос
+        </button>
+      `;
+      addMoreDiv.querySelector('.persistent-add-btn').addEventListener('click', openAddQuestionModal);
+      questionsContainer.appendChild(addMoreDiv);
+    }
 
     updateEmptyState();
   }
@@ -379,18 +395,85 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPages();
   }
 
+  // --- Логика сохранения в БД ---
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+  }
+
+  function saveSurveyToDB() {
+    if (!saveBtn || !saveBtnText) return;
+
+    const originalText = saveBtnText.textContent;
+    saveBtnText.textContent = 'Сохраняем...';
+    saveBtn.disabled = true;
+
+    const surveyDataEl = document.querySelector('[data-survey-name]');
+    const sName = surveyDataEl ? surveyDataEl.getAttribute('data-survey-name') : "Новый опрос";
+    const sType = surveyDataEl ? surveyDataEl.getAttribute('data-survey-type') : "custom";
+    
+    const surveyData = {
+        survey_name: sName,
+        survey_type: sType,
+        state_json: window.state
+    };
+
+    fetch('/save-survey/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(surveyData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Очищаем локальное хранилище после успешного сохранения
+            localStorage.removeItem(`pollstream:builder:${sName}`);
+            // Перенаправляем на главную
+            window.location.href = '/';
+        } else {
+            alert('Ошибка при сохранении: ' + data.message);
+            saveBtnText.textContent = originalText;
+            saveBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        alert('Не удалось подключиться к серверу');
+        saveBtnText.textContent = originalText;
+        saveBtn.disabled = false;
+    });
+  }
+
   // Initialize
   function init() {
+    // Инициализация сохранения
+    if (saveBtn && saveBtnText) {
+        saveBtn.addEventListener('mouseenter', () => saveBtnText.textContent = 'Сохранить и выйти');
+        saveBtn.addEventListener('mouseleave', () => saveBtnText.textContent = 'Сохранено');
+        saveBtn.addEventListener('click', saveSurveyToDB);
+    }
+
     if (!addElementBtn || !startHereBtn || !questionsContainer || !pagesList || !addPageBtn) {
       console.warn('Survey builder elements not found, skipping initialization');
       return;
     }
 
-    // Modal open from both buttons
     addElementBtn.addEventListener('click', openAddQuestionModal);
     startHereBtn.addEventListener('click', openAddQuestionModal);
 
-    // Modal close
     if (closeAddQuestionBtn) {
       closeAddQuestionBtn.addEventListener('click', closeAddQuestionModal);
     }
@@ -405,7 +488,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Type selection
     document.querySelectorAll('.question-type-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const type = btn.getAttribute('data-type');
@@ -414,7 +496,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Page handlers
     pagesList.addEventListener('input', (e) => {
       if (e.target.classList.contains('page-title-input')) {
         const pageId = e.target.getAttribute('data-page-id');
@@ -432,12 +513,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    addPageBtn.addEventListener('click', () => {
-      const pageNum = state.pages.length + 1;
-      addPage(`Страница ${pageNum}`, true);
-    });
-
-    // Delegated handlers inside questions list
     questionsContainer.addEventListener('input', (e) => {
       const root = e.target.closest('[data-qid]');
       if (!root) return;
@@ -564,7 +639,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Bootstrap from template (if any) then load and render initial state
     bootstrapFromTemplateIfNeeded();
     loadState();
     renderPages();
@@ -573,4 +647,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
   init();
 });
-
