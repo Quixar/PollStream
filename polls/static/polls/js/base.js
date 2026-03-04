@@ -36,3 +36,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 });
+document.addEventListener('DOMContentLoaded', () => {
+  // Base JS (общие хелперы/инициализация для всех страниц)
+  // Сейчас логики в base-шаблоне нет — файл оставлен как точка расширения,
+  // чтобы подключение было единообразным и соответствовало требованиям.
+});

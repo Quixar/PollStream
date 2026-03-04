@@ -142,6 +142,7 @@ def login_view(request):
 def register_view(request):
     return render(request, 'polls/register.html')
 
+
 def profile(request):
     # Mock data for profile page
     user_data = {
