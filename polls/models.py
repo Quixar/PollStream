@@ -1,7 +1,10 @@
 from django.db import models
-
+from django.contrib.auth.models import User
 
 class Survey(models.Model):
+
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="surveys")
+
     name = models.CharField(max_length=255, verbose_name="Название анкеты")
     survey_type = models.CharField(max_length=50, default='custom', verbose_name="Тип анкеты")
 

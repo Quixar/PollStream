@@ -1,8 +1,14 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
 from django.http import JsonResponse 
 from django.views.decorators.csrf import ensure_csrf_cookie
 from .models import Survey
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, login
+from django.contrib import messages
+from django.contrib.auth import logout
+from .forms import RegistrationForm
+from django.contrib.auth.forms import UserCreationForm
+
 
 import json
 from uuid import uuid4
@@ -112,6 +118,7 @@ def index(request):
     return render(request, 'polls/index.html', context)
 
 
+@login_required
 def save_survey(request):
     if request.method == 'POST':
         try:
@@ -125,6 +132,7 @@ def save_survey(request):
                 survey.save()
             else:
                 survey = Survey.objects.create(
+                    author=request.user,
                     name=data.get('survey_name', 'Новый опрос'),
                     survey_type=data.get('survey_type', 'custom'),
                     state_json=data.get('state_json', {})
@@ -184,10 +192,35 @@ def create_survey(request):
     return render(request, 'polls/create_survey.html', context)
 
 def login_view(request):
-    return render(request, 'polls/login.html')
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+            return redirect("dashboard_home")
+        else:
+            messages.error(request, "Invalid username or password")
+
+    return render(request, "polls/login.html")
 
 def register_view(request):
-    return render(request, 'polls/register.html')
+    if request.method == "POST":
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect("dashboard_home")
+    else:
+        form = UserCreationForm()
+
+    return render(request, "polls/register.html", {"form": form})
+
+def logout_view(request):
+    logout(request)
+    return redirect("index")
 
 def profile(request):
     user_data = {
