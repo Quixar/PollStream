@@ -1,13 +1,14 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
-from .models import Survey
+from .models import Survey, Profile
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django.contrib.auth import logout
 from .forms import RegistrationForm
 from django.contrib.auth.forms import UserCreationForm
+from .forms import ProfileUpdateForm
 
 
 import json
@@ -252,8 +253,26 @@ def dashboard_home(request):
     return render(request, 'polls/dashboard_home.html', context)
 
 
+@login_required
 def dashboard_profile(request):
-    return render(request, 'polls/dashboard_profile.html')
+    profile, created = Profile.objects.get_or_create(user=request.user)
+
+    if request.method == "POST":
+        request.user.username = request.POST.get("username")
+        request.user.email = request.POST.get("email")
+        request.user.first_name = request.POST.get("first_name")
+        request.user.last_name = request.POST.get("last_name")
+
+        profile.phone = request.POST.get("phone")
+
+        request.user.save()
+        profile.save()
+
+        return redirect("dashboard_profile")
+
+    return render(request, "polls/dashboard_profile.html", {
+        "profile": profile
+    })
 
 
 def dashboard_team(request):
