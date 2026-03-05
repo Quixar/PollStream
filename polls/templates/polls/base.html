@@ -18,16 +18,29 @@
     <nav class="flex items-center gap-6">
       <a href="{% url 'index' %}" class="text-base text-gray-700 hover:text-indigo-600 transition">Home</a>
       <a href="#" class="text-base text-gray-700 hover:text-indigo-600 transition">About Us</a>
+
       <div class="flex items-center gap-3 ml-4 relative">
         <button type="button" class="flex items-center gap-3 cursor-pointer" id="user-menu-button">
-          <div class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-            J
+          <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
+                      {% if user.is_authenticated %}bg-indigo-600 text-white{% else %}bg-gray-400 text-white{% endif %}">
+            {% if user.is_authenticated %}
+              {{ user.username|slice:":1"|upper }}
+            {% else %}
+              G
+            {% endif %}
           </div>
-          <span class="text-base text-gray-700">John Doe</span>
+          <span class="text-base text-gray-700">
+            {% if user.is_authenticated %}
+              {{ user.username }}
+            {% else %}
+              Guest
+            {% endif %}
+          </span>
           <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
           </svg>
         </button>
+
         <div class="absolute top-full right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden" id="user-dropdown">
           <div class="py-2">
             <a href="{% url 'index' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Главная страница</a>
@@ -37,7 +50,11 @@
             <a href="{% url 'dashboard_activity' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Активность участников</a>
             <a href="{% url 'dashboard_settings' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Настройки команды</a>
             <div class="border-t my-1"></div>
-            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Sign out</a>
+            {% if user.is_authenticated %}
+              <a href="{% url 'logout' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Sign out</a>
+            {% else %}
+              <a href="{% url 'login' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Sign in</a>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -54,4 +71,3 @@
 {% block extra_js %}{% endblock %}
 </body>
 </html>
-

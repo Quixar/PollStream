@@ -155,11 +155,10 @@ def edit_survey(request, survey_id):
     }
     return render(request, 'polls/create_survey.html', context)
 
+@login_required
 def survey_detail(request, survey_id):
-    survey = get_object_or_404(Survey, id=survey_id)
-
+    survey = get_object_or_404(Survey, id=survey_id, author=request.user)
     state_data = survey.state_json if survey.state_json else {"pages": []}
-
     context = {
         'survey': survey,
         'state_json': json.dumps(state_data, ensure_ascii=False),
@@ -257,8 +256,10 @@ def dashboard_team(request):
     return render(request, 'polls/dashboard_team.html')
 
 
+@login_required
 def dashboard_forms(request):
-    return render(request, 'polls/dashboard_forms.html')
+    surveys = request.user.surveys.all().order_by('-created_at')
+    return render(request, 'polls/dashboard_forms.html', {'surveys': surveys})
 
 
 def dashboard_activity(request):
