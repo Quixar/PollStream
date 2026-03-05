@@ -165,27 +165,26 @@ def survey_detail(request, survey_id):
     }
     return render(request, 'polls/survey_view.html', context)
 
-@ensure_csrf_cookie
+@login_required
 def create_survey(request):
     survey_name = request.GET.get('survey_name', 'Новый опрос')
     survey_type = request.GET.get('survey_type', 'custom')
     template_id = request.GET.get('template_id', '')
 
-    template_state_json = ''
+    template_state_json = '{}'
     if survey_type == 'template' and template_id:
         templates = {t["id"]: t for t in get_survey_templates()}
         tpl = templates.get(template_id)
         if tpl:
             state = build_state_from_template(tpl)
             template_state_json = json.dumps(state, ensure_ascii=False)
-            if not survey_name or survey_name == 'Новый опрос':
-                survey_name = tpl.get("default_name") or survey_name
+            survey_name = tpl.get("default_name", survey_name)
 
     context = {
         'survey_name': survey_name,
         'survey_type': survey_type,
-        'template_id': template_id,
         'template_state_json': template_state_json,
+        'survey_id': '',  # empty for new survey
     }
     return render(request, 'polls/create_survey.html', context)
 
