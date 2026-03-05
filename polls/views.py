@@ -97,26 +97,31 @@ def build_state_from_template(template_def):
     current_page_id = pages[0]["id"] if pages else None
     return {"pages": pages, "currentPageId": current_page_id}
 
+@login_required
 def index(request):
     if request.method == 'POST':
         survey_name = request.POST.get('survey_name', '')
         survey_type = request.POST.get('survey_type', 'custom')
         template_id = request.POST.get('template_id', '') if survey_type == 'template' else ''
+
         if survey_name:
             from urllib.parse import urlencode
             payload = {'survey_name': survey_name, 'survey_type': survey_type}
+
             if template_id:
                 payload['template_id'] = template_id
+
             params = urlencode(payload)
             return redirect(f'/create-survey/?{params}')
 
-    surveys = Survey.objects.all().order_by('-created_at')
+    surveys = Survey.objects.filter(author=request.user).order_by('-created_at')
+
     context = {
         "survey_templates": get_survey_templates(),
         "surveys": surveys,
     }
-    return render(request, 'polls/index.html', context)
 
+    return render(request, 'polls/index.html', context)
 
 @login_required
 def save_survey(request):
@@ -257,8 +262,11 @@ def dashboard_team(request):
 
 @login_required
 def dashboard_forms(request):
-    surveys = request.user.surveys.all().order_by('-created_at')
-    return render(request, 'polls/dashboard_forms.html', {'surveys': surveys})
+    surveys = Survey.objects.filter(author=request.user).order_by('-created_at')
+
+    return render(request, 'polls/dashboard_forms.html', {
+        'surveys': surveys
+    })
 
 
 def dashboard_activity(request):
