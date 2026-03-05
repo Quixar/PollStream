@@ -95,8 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
 const surveyContainer = document.getElementById('survey-data-container');
     const rawData = surveyContainer ? surveyContainer.getAttribute('data-template-state') : '';
 
-    console.log("Raw data from HTML:", rawData); // Для отладки в консоли F12
-
     if (rawData && rawData !== '{}' && rawData !== '""') {
       try {
         const parsed = JSON.parse(rawData);
@@ -125,8 +123,6 @@ const surveyContainer = document.getElementById('survey-data-container');
       }
     } catch (e) {}
 
-    // 3. Если везде пусто — создаем новую страницу
-    console.log("Создание новой пустой анкеты");
     addPage('Главная страница', true);
   }
 

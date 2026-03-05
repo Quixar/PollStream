@@ -17,4 +17,5 @@ urlpatterns = [
     path('dashboard/settings/', views.dashboard_settings, name='dashboard_settings'),
     path('save-survey/', views.save_survey, name='save_survey'),
     path('edit-survey/<int:survey_id>/', views.edit_survey, name='edit_survey'),
+    path('survey/<int:survey_id>/', views.survey_detail, name='survey_detail'),
 ]

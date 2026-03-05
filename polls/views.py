@@ -147,6 +147,18 @@ def edit_survey(request, survey_id):
     }
     return render(request, 'polls/create_survey.html', context)
 
+
+def survey_detail(request, survey_id):
+    survey = get_object_or_404(Survey, id=survey_id)
+
+    state_data = survey.state_json if survey.state_json else {"pages": []}
+
+    context = {
+        'survey': survey,
+        'state_json': json.dumps(state_data, ensure_ascii=False),
+    }
+    return render(request, 'polls/survey_view.html', context)
+
 @ensure_csrf_cookie
 def create_survey(request):
     survey_name = request.GET.get('survey_name', 'Новый опрос')
