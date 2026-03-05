@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse 
+from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from .models import Survey
 from django.contrib.auth.decorators import login_required
@@ -109,11 +109,11 @@ def index(request):
                 payload['template_id'] = template_id
             params = urlencode(payload)
             return redirect(f'/create-survey/?{params}')
-            
+
     surveys = Survey.objects.all().order_by('-created_at')
     context = {
         "survey_templates": get_survey_templates(),
-        "surveys": surveys, 
+        "surveys": surveys,
     }
     return render(request, 'polls/index.html', context)
 
@@ -126,7 +126,7 @@ def save_survey(request):
             survey_id = data.get('survey_id')
 
             if survey_id:
-                survey = Survey.objects.get(id=survey_id)
+                survey = get_object_or_404(Survey, id=survey_id, author=request.user)
                 survey.name = data.get('survey_name', survey.name)
                 survey.state_json = data.get('state_json', survey.state_json)
                 survey.save()
@@ -143,10 +143,10 @@ def save_survey(request):
             return JsonResponse({'status': 'error', 'message': str(e)})
 
 
+@login_required
 def edit_survey(request, survey_id):
-    survey = get_object_or_404(Survey, id=survey_id)
+    survey = get_object_or_404(Survey, id=survey_id, author=request.user)
     state_json_string = json.dumps(survey.state_json, ensure_ascii=False)
-
     context = {
         'survey_id': survey.id,
         'survey_name': survey.name,
@@ -154,7 +154,6 @@ def edit_survey(request, survey_id):
         'template_state_json': state_json_string,
     }
     return render(request, 'polls/create_survey.html', context)
-
 
 def survey_detail(request, survey_id):
     survey = get_object_or_404(Survey, id=survey_id)
@@ -182,7 +181,7 @@ def create_survey(request):
             template_state_json = json.dumps(state, ensure_ascii=False)
             if not survey_name or survey_name == 'Новый опрос':
                 survey_name = tpl.get("default_name") or survey_name
-    
+
     context = {
         'survey_name': survey_name,
         'survey_type': survey_type,
@@ -213,26 +212,41 @@ def register_view(request):
             user = form.save()
             login(request, user)
             return redirect("dashboard_home")
+        else:
+            messages.error(request, "Please fix the errors below")
     else:
         form = UserCreationForm()
-
     return render(request, "polls/register.html", {"form": form})
 
 def logout_view(request):
     logout(request)
-    return redirect("index")
+    return redirect("login")
 
+@login_required
 def profile(request):
+    surveys_count = request.user.surveys.count()
     user_data = {
-        'username': 'John Doe',
-        'email': 'john.doe@example.com',
-        'surveys_count': 5
+        'username': request.user.username,
+        'email': request.user.email,
+        'surveys_count': surveys_count
     }
     return render(request, 'polls/profile.html', {'user': user_data})
 
 # Dashboard views
+@login_required
 def dashboard_home(request):
-    return render(request, 'polls/dashboard_home.html')
+    surveys = request.user.surveys.all().order_by('-created_at')
+    responses_count = sum(s.responses.count() for s in surveys)  # total answers
+    # For simplicity, assume you don’t have team members yet
+    team_count = 0
+
+    context = {
+        'surveys_count': surveys.count(),
+        'responses_count': responses_count,
+        'team_count': team_count,
+        'recent_activity': [],  # optional for now
+    }
+    return render(request, 'polls/dashboard_home.html', context)
 
 
 def dashboard_profile(request):
