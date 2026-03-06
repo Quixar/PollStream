@@ -104,6 +104,34 @@ def build_state_from_template(template_def):
     current_page_id = pages[0]["id"] if pages else None
     return {"pages": pages, "currentPageId": current_page_id}
 
+
+@require_POST
+def submit_survey_response(request, survey_id):
+    try:
+        survey = get_object_or_404(Survey, id=survey_id)
+
+        data = json.loads(request.body)
+        answers = data.get('answers', {})
+
+        if not answers:
+            return JsonResponse({'status': 'error', 'message': 'Ответы не получены'}, status=400)
+
+        response = SurveyResponse.objects.create(
+            survey=survey,
+            answers_json=answers
+        )
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Ответ успешно сохранен!',
+            'response_id': response.id
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Невалидный JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
 @login_required
 def index(request):
     if request.method == 'POST':

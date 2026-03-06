@@ -88,21 +88,72 @@ document.addEventListener('DOMContentLoaded', () => {
     if (form) {
         form.onsubmit = async (e) => {
             e.preventDefault();
+
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Отправка...";
+
             const formData = new FormData(form);
             const answers = {};
 
             for (let [key, value] of formData.entries()) {
-                if (answers[key]) {
-                    if (!Array.isArray(answers[key])) answers[key] = [answers[key]];
-                    answers[key].push(value);
+                const questionId = key.replace('q_', '');
+                if (answers[questionId]) {
+                    if (!Array.isArray(answers[questionId])) answers[questionId] = [answers[questionId]];
+                    answers[questionId].push(value);
                 } else {
-                    answers[key] = value;
+                    answers[questionId] = value;
                 }
             }
 
-            console.log("Результаты опроса:", answers);
-            alert("Ваши ответы приняты! Спасибо.");
-            // Здесь в будущем будет fetch('/submit-answer/')
+            const pathParts = window.location.pathname.split('/');
+            const surveyId = pathParts[pathParts.length - 2] || pathParts[pathParts.length - 1];
+
+            try {
+                const response = await fetch(`/survey/${surveyId}/submit/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Получаем CSRF токен из куки или из скрытого поля формы
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ answers: answers })
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    container.innerHTML = `
+                        <div class="text-center py-10">
+                            <h2 class="text-2xl font-bold text-green-600 mb-4">Спасибо за ваш ответ!</h2>
+                            <p class="text-gray-600">Ваши данные успешно сохранены.</p>
+                            <a href="/" class="mt-6 inline-block text-indigo-600 hover:underline">На главную</a>
+                        </div>
+                    `;
+                    submitBtn.remove();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (err) {
+                alert("Ошибка при отправке: " + err.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Отправить анкету";
+            }
         };
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
     }
 });

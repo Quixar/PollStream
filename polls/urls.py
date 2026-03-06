@@ -32,6 +32,7 @@ urlpatterns = [
 
     path('delete-survey/<int:survey_id>/', views.delete_survey, name='delete_survey'),
     path('survey/<int:survey_id>/delete-page/<str:page_id>/', views.delete_survey_page, name='delete_survey_page'),
+    path('survey/<int:survey_id>/submit/', views.submit_survey_response, name='submit_survey_response'),
 ]
 
 # URL для перенаправления неавторизованных пользователей

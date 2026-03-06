@@ -80,7 +80,6 @@ class SurveyLink(models.Model):
     class Meta:
         verbose_name = "Ссылка на анкету"
         verbose_name_plural = "Ссылки на анкеты"
-
     def __str__(self):
         return f"Ссылка на '{self.survey.name}'"
 
