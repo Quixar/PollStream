@@ -6,9 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ? surveyDataEl.getAttribute('data-survey-name')
     : 'Новый опрос';
 
-  const templateStateRaw = surveyDataEl ? surveyDataEl.getAttribute('data-template-state') : '';
-  const surveyId = surveyDataEl ? surveyDataEl.getAttribute('data-survey-id') : null;
-
   const storageKey = `pollstream:builder:${surveyName}`;
 
   const addElementBtn = document.getElementById('addElementBtn');
@@ -30,12 +27,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function escHtml(s) {
+    // Avoid replaceAll for older browsers
     return String(s)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#039;');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   function getDefaultQuestion(type) {
@@ -92,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function initSurveyState() {
-const surveyContainer = document.getElementById('survey-data-container');
+    const surveyContainer = document.getElementById('survey-data-container');
     const rawData = surveyContainer ? surveyContainer.getAttribute('data-template-state') : '';
 
     if (rawData && rawData !== '{}' && rawData !== '""') {
@@ -194,6 +192,7 @@ const surveyContainer = document.getElementById('survey-data-container');
       } else {
         body.innerHTML = `<textarea class="w-full min-h-[96px] px-4 py-3 border border-gray-200 rounded-2xl outline-none" placeholder="Текстовый ответ..." disabled></textarea>`;
       }
+
       questionsContainer.appendChild(el);
     });
 
@@ -261,52 +260,93 @@ const surveyContainer = document.getElementById('survey-data-container');
     return cookieValue;
   }
 
-  function saveSurveyToDB() {
+  function saveSurveyToDB(redirectToSettings = false) {
     if (!saveBtn || !saveBtnText) return;
 
-      const dataContainer = document.querySelector('[data-survey-name]');
-      const sId = dataContainer ? dataContainer.getAttribute('data-survey-id') : null;
+    const dataContainer = document.querySelector('[data-survey-name]');
+    if (!dataContainer) return;
 
-      const originalText = saveBtnText.textContent;
-      saveBtnText.textContent = 'Сохраняем...';
-      saveBtn.disabled = true;
+    const sId = dataContainer.getAttribute('data-survey-id');
+    const sType = dataContainer.getAttribute('data-survey-type') || 'custom';
 
-      const sType = dataContainer ? dataContainer.getAttribute('data-survey-type') : "custom";
+    const originalText = saveBtnText.textContent;
+    saveBtnText.textContent = 'Сохраняем...';
+    saveBtn.disabled = true;
 
-      const surveyData = {
-          survey_id: sId,
-          survey_name: surveyName,
-          survey_type: sType,
-          state_json: window.state
-      };
+    const surveyData = {
+      survey_id: sId,
+      survey_name: surveyName,
+      survey_type: sType,
+      state_json: window.state
+    };
 
-      console.log("Отправка данных на сервер:", surveyData);
+    fetch('/save-survey/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+      body: JSON.stringify(surveyData)
+    })
+    .then(async (r) => {
+      const contentType = (r.headers.get('content-type') || '').toLowerCase();
+      const isJson = contentType.includes('application/json');
+      if (!isJson) {
+        const text = await r.text().catch(() => '');
+        throw new Error(`Server returned non-JSON (HTTP ${r.status}). ${text ? 'Check CSRF/auth.' : ''}`.trim());
+      }
+      const data = await r.json();
+      return { ok: r.ok, status: r.status, data };
+    })
+    .then(({ ok, status, data }) => {
+      if (!ok || !data || data.status !== 'success') {
+        const msg = data?.message || `Ошибка сохранения (HTTP ${status})`;
+        throw new Error(msg);
+      }
+      if (data.status === 'success') {
+        localStorage.removeItem(storageKey);
+        // Обновляем survey-id в DOM
+        dataContainer.setAttribute('data-survey-id', data.survey_id);
 
-      fetch('/save-survey/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-          body: JSON.stringify(surveyData)
-      })
-      .then(r => r.json())
-      .then(data => {
-          if (data.status === 'success') {
-              localStorage.removeItem(storageKey);
-              window.location.href = '/';
-          } else {
-              alert('Ошибка: ' + data.message);
-              saveBtnText.textContent = originalText;
-              saveBtn.disabled = false;
-          }
-      })
-      .catch(() => {
-          alert('Ошибка подключения');
-          saveBtnText.textContent = originalText;
-          saveBtn.disabled = false;
-      });
+        // Обновляем ссылки на шаги
+        const stepSettings = document.getElementById('step-settings');
+        const stepResponses = document.getElementById('step-responses');
+        const stepResults = document.getElementById('step-results');
+
+        if (stepSettings) {
+          stepSettings.href = `/survey/${data.survey_id}/settings/`;
+          stepSettings.classList.remove('cursor-not-allowed');
+          stepSettings.classList.add('hover:text-indigo-600', 'transition');
+        }
+        if (stepResponses) {
+          stepResponses.href = `/survey/${data.survey_id}/responses/`;
+          stepResponses.classList.remove('cursor-not-allowed');
+          stepResponses.classList.add('hover:text-indigo-600', 'transition');
+        }
+        if (stepResults) {
+          stepResults.href = `/survey/${data.survey_id}/results/`;
+          stepResults.classList.remove('cursor-not-allowed');
+          stepResults.classList.add('hover:text-indigo-600', 'transition');
+        }
+
+        // Перенаправляем на страницу настроек если запрошено
+        if (redirectToSettings) {
+          window.location.href = `/survey/${data.survey_id}/settings/`;
+          return;
+        }
+
+        saveBtnText.textContent = 'Сохранено';
+        saveBtn.disabled = false;
+      }
+    })
+    .catch((err) => {
+      alert(err && err.message ? err.message : 'Ошибка подключения');
+      saveBtnText.textContent = originalText;
+      saveBtn.disabled = false;
+    });
   }
 
   function init() {
-    if (saveBtn) saveBtn.addEventListener('click', saveSurveyToDB);
+    if (saveBtn) saveBtn.addEventListener('click', () => saveSurveyToDB(false));
+    const nextToSettingsBtn = document.getElementById('nextToSettingsBtn');
+    if (nextToSettingsBtn) nextToSettingsBtn.addEventListener('click', () => saveSurveyToDB(true));
     if (!addElementBtn || !startHereBtn) return;
 
     addElementBtn.addEventListener('click', openAddQuestionModal);
@@ -320,6 +360,7 @@ const surveyContainer = document.getElementById('survey-data-container');
       });
     });
 
+    // Изменения по вопросам
     questionsContainer.addEventListener('input', (e) => {
       const root = e.target.closest('[data-qid]');
       if (!root) return;
@@ -330,22 +371,25 @@ const surveyContainer = document.getElementById('survey-data-container');
       if (e.target.classList.contains('option-input')) q.options[e.target.dataset.optIndex] = e.target.value;
       if (e.target.classList.contains('matrix-row')) q.rows[e.target.dataset.rowIndex] = e.target.value;
       if (e.target.classList.contains('matrix-col')) q.cols[e.target.dataset.colIndex] = e.target.value;
+      if (e.target.classList.contains('question-required')) q.required = e.target.checked;
+
       saveToLocalStorage();
     });
 
+    // Клики по кнопкам
     questionsContainer.addEventListener('click', (e) => {
-        const root = e.target.closest('[data-qid]');
-        if (!root) return;
-        const q = getCurrentPageQuestions().find(x => x.id === root.dataset.qid);
+      const root = e.target.closest('[data-qid]');
+      if (!root) return;
+      const q = getCurrentPageQuestions().find(x => x.id === root.dataset.qid);
 
-        if (e.target.classList.contains('delete-question')) {
-            const p = getCurrentPage();
-            p.questions = p.questions.filter(x => x.id !== root.dataset.qid);
-            renderQuestions(); renderPages();
-        }
-        if (e.target.classList.contains('add-option')) { q.options.push(`Вариант ${q.options.length + 1}`); renderQuestions(); }
-        if (e.target.classList.contains('remove-option')) { q.options.splice(e.target.dataset.optIndex, 1); renderQuestions(); }
+      if (e.target.classList.contains('delete-question')) {
+        const p = getCurrentPage();
+        p.questions = p.questions.filter(x => x.id !== root.dataset.qid);
+        renderQuestions(); renderPages();
         saveToLocalStorage();
+      }
+      if (e.target.classList.contains('add-option')) { q.options.push(`Вариант ${q.options.length + 1}`); renderQuestions(); saveToLocalStorage(); }
+      if (e.target.classList.contains('remove-option')) { q.options.splice(e.target.dataset.optIndex, 1); renderQuestions(); saveToLocalStorage(); }
     });
 
     initSurveyState();

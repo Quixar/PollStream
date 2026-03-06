@@ -1,7 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.views.decorators.csrf import ensure_csrf_cookie
 from .models import Survey, Profile
+from .models import Survey, SurveyResponse, SurveyLink
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
@@ -9,6 +10,8 @@ from django.contrib.auth import logout
 from .forms import RegistrationForm
 from django.contrib.auth.forms import UserCreationForm
 from .forms import ProfileUpdateForm
+from django.utils.dateparse import parse_datetime
+
 
 
 import json
@@ -124,33 +127,79 @@ def index(request):
 
     return render(request, 'polls/index.html', context)
 
-@login_required
 def save_survey(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            survey_id = data.get('survey_id')
+    """
+    AJAX endpoint for survey create/update.
+    Returns JSON always (no redirects), so frontend fetch() can reliably parse it.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
 
-            if survey_id:
-                survey = get_object_or_404(Survey, id=survey_id, author=request.user)
-                survey.name = data.get('survey_name', survey.name)
-                survey.state_json = data.get('state_json', survey.state_json)
-                survey.save()
-            else:
-                survey = Survey.objects.create(
-                    author=request.user,
-                    name=data.get('survey_name', 'Новый опрос'),
-                    survey_type=data.get('survey_type', 'custom'),
-                    state_json=data.get('state_json', {})
-                )
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required'}, status=401)
 
-            return JsonResponse({'status': 'success', 'survey_id': survey.id})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)})
+    try:
+        data = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+    try:
+        survey_id = data.get('survey_id') or None
+        survey_name = (data.get('survey_name') or '').strip() or 'Новый опрос'
+        survey_type = (data.get('survey_type') or 'custom').strip() or 'custom'
+        state_json = data.get('state_json', None)
+        settings_payload = data.get('settings') if isinstance(data.get('settings'), dict) else None
+        finalize = bool(data.get('finalize', False))
+
+        if survey_id:
+            survey = get_object_or_404(Survey, id=survey_id, author=request.user)
+            survey.name = survey_name
+            survey.survey_type = survey_type
+            if state_json is not None:
+                survey.state_json = state_json
+            if settings_payload is not None:
+                survey.description = settings_payload.get('description', survey.description)
+                survey.visibility = settings_payload.get('visibility', survey.visibility)
+
+                survey.response_type = settings_payload.get('response_type', survey.response_type)
+                response_limit = settings_payload.get('response_limit', None)
+                survey.response_limit = int(response_limit) if response_limit not in (None, '', False) else None
+
+                response_deadline = settings_payload.get('response_deadline', None)
+                if response_deadline in (None, '', False):
+                    survey.response_deadline = None
+                else:
+                    # datetime-local comes as "YYYY-MM-DDTHH:MM"
+                    survey.response_deadline = parse_datetime(str(response_deadline)) or survey.response_deadline
+
+                survey.show_progress_bar = bool(settings_payload.get('show_progress_bar', survey.show_progress_bar))
+                survey.show_question_numbers = bool(settings_payload.get('show_question_numbers', survey.show_question_numbers))
+                survey.shuffle_questions = bool(settings_payload.get('shuffle_questions', survey.shuffle_questions))
+                survey.allow_edit_after_submit = bool(settings_payload.get('allow_edit_after_submit', survey.allow_edit_after_submit))
+                survey.is_active = bool(settings_payload.get('is_active', survey.is_active))
+
+            if finalize:
+                # Mark as ready (current model has only is_active as status-like flag)
+                survey.is_active = True
+            survey.save()
+        else:
+            survey = Survey.objects.create(
+                author=request.user,
+                name=survey_name,
+                survey_type=survey_type,
+                state_json=state_json if state_json is not None else {},
+            )
+
+        return JsonResponse({'status': 'success', 'survey_id': survey.id, 'finalized': finalize})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
-@login_required
+@ensure_csrf_cookie
 def edit_survey(request, survey_id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+
     survey = get_object_or_404(Survey, id=survey_id, author=request.user)
     state_json_string = json.dumps(survey.state_json, ensure_ascii=False)
     context = {
@@ -161,17 +210,26 @@ def edit_survey(request, survey_id):
     }
     return render(request, 'polls/create_survey.html', context)
 
-@login_required
 def survey_detail(request, survey_id):
-    survey = get_object_or_404(Survey, id=survey_id, author=request.user)
+    survey = get_object_or_404(Survey, id=survey_id)
+    
+    # Check if user is author or has valid token
+    token = request.GET.get('token')
+    if survey.author != request.user and (not token or not SurveyLink.objects.filter(survey=survey, token=token, is_active=True).exists()):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        raise Http404("Survey not found")
+    
     state_data = survey.state_json if survey.state_json else {"pages": []}
     context = {
         'survey': survey,
         'state_json': json.dumps(state_data, ensure_ascii=False),
+        'is_author': survey.author == request.user,
     }
     return render(request, 'polls/survey_view.html', context)
 
 @login_required
+@ensure_csrf_cookie
 def create_survey(request):
     survey_name = request.GET.get('survey_name', 'Новый опрос')
     survey_type = request.GET.get('survey_type', 'custom')
@@ -294,3 +352,119 @@ def dashboard_activity(request):
 
 def dashboard_settings(request):
     return render(request, 'polls/dashboard_settings.html')
+
+
+@login_required
+@ensure_csrf_cookie
+def survey_settings(request, survey_id):
+    """Страница настроек опроса."""
+    survey = get_object_or_404(Survey, id=survey_id, author=request.user)
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            # Обновляем базовые настройки
+            survey.name = data.get('name', survey.name)
+            survey.description = data.get('description', survey.description)
+            survey.visibility = data.get('visibility', survey.visibility)
+            
+            # Настройки ответов
+            survey.response_type = data.get('response_type', survey.response_type)
+            if data.get('response_limit'):
+                survey.response_limit = int(data.get('response_limit'))
+            else:
+                survey.response_limit = None
+                
+            if data.get('response_deadline'):
+                survey.response_deadline = data.get('response_deadline')
+            else:
+                survey.response_deadline = None
+            
+            # Прочие настройки
+            survey.show_progress_bar = data.get('show_progress_bar', True)
+            survey.show_question_numbers = data.get('show_question_numbers', True)
+            survey.shuffle_questions = data.get('shuffle_questions', False)
+            survey.allow_edit_after_submit = data.get('allow_edit_after_submit', False)
+            survey.is_active = data.get('is_active', True)
+            
+            survey.save()
+            return JsonResponse({'status': 'success', 'message': 'Настройки сохранены'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+    
+    context = {
+        'survey': survey,
+        'survey_json': json.dumps({
+            'id': survey.id,
+            'name': survey.name,
+            'description': survey.description,
+            'visibility': survey.visibility,
+            'response_type': survey.response_type,
+            'response_limit': survey.response_limit,
+            'response_deadline': survey.response_deadline,
+            'show_progress_bar': survey.show_progress_bar,
+            'show_question_numbers': survey.show_question_numbers,
+            'shuffle_questions': survey.shuffle_questions,
+            'allow_edit_after_submit': survey.allow_edit_after_submit,
+            'is_active': survey.is_active,
+        }, ensure_ascii=False)
+    }
+    return render(request, 'polls/survey_settings.html', context)
+
+
+@login_required
+def survey_responses(request, survey_id):
+    """Страница для управления ответами и распространением опроса."""
+    survey = get_object_or_404(Survey, id=survey_id, author=request.user)
+    
+    # Генерируем или получаем ссылку
+    survey_link, _ = SurveyLink.objects.get_or_create(
+        survey=survey,
+        defaults={'token': uuid4().hex}
+    )
+    
+    responses = survey.responses.all().order_by('-submitted_at')
+    
+    context = {
+        'survey': survey,
+        'survey_link': survey_link,
+        'response_count': responses.count(),
+        'responses': responses[:10],  # Последние 10 ответов
+        'response_json': json.dumps({
+            'total': responses.count(),
+            'responses': [
+                {
+                    'id': r.id,
+                    'submitted_at': r.submitted_at.strftime('%d.%m.%Y %H:%M'),
+                    'answers': r.answers_json
+                } for r in responses[:10]
+            ]
+        }, ensure_ascii=False)
+    }
+    return render(request, 'polls/survey_responses.html', context)
+
+
+@login_required
+def survey_results(request, survey_id):
+    """Страница с результатами опроса."""
+    survey = get_object_or_404(Survey, id=survey_id, author=request.user)
+    responses = survey.responses.all()
+    
+    # Анализ ответов
+    response_count = responses.count()
+    
+    # Подготовка данных для графиков
+    responses_by_date = {}
+    for resp in responses:
+        date = resp.submitted_at.date()
+        date_str = date.strftime('%d.%m.%Y')
+        responses_by_date[date_str] = responses_by_date.get(date_str, 0) + 1
+    
+    context = {
+        'survey': survey,
+        'response_count': response_count,
+        'responses_by_date': json.dumps(responses_by_date, ensure_ascii=False),
+        'responses': responses,
+    }
+    return render(request, 'polls/survey_results.html', context)
