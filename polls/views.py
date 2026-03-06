@@ -145,7 +145,7 @@ def save_survey(request):
 
     try:
         survey_id = data.get('survey_id') or None
-        survey_name = (data.get('survey_name') or '').strip() or 'Новый опрос'
+        survey_name = (data.get('survey_name') or '').strip()
         survey_type = (data.get('survey_type') or 'custom').strip() or 'custom'
         state_json = data.get('state_json', None)
         settings_payload = data.get('settings') if isinstance(data.get('settings'), dict) else None
@@ -153,7 +153,8 @@ def save_survey(request):
 
         if survey_id:
             survey = get_object_or_404(Survey, id=survey_id, author=request.user)
-            survey.name = survey_name
+            if survey_name:
+                survey.name = survey_name
             survey.survey_type = survey_type
             if state_json is not None:
                 survey.state_json = state_json
