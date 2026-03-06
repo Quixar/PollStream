@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const name = `q_${q.id}`;
 
-            // Логика выбора типа поля
             switch (q.type) {
                 case 'text':
                 case 'email':
@@ -97,6 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const answers = {};
 
             for (let [key, value] of formData.entries()) {
+                // 1. ИГНОРИРУЕМ CSRF TOKEN (решает проблему со скриншота 2)
+                if (key === 'csrfmiddlewaretoken') continue;
+
                 const questionId = key.replace('q_', '');
                 if (answers[questionId]) {
                     if (!Array.isArray(answers[questionId])) answers[questionId] = [answers[questionId]];
@@ -106,15 +108,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            const pathParts = window.location.pathname.split('/');
-            const surveyId = pathParts[pathParts.length - 2] || pathParts[pathParts.length - 1];
+            // Корректное получение ID из URL
+            const pathParts = window.location.pathname.split('/').filter(p => p !== "");
+            const surveyId = pathParts[pathParts.indexOf('survey') + 1];
 
             try {
+                // 2. ИСПРАВЛЕННЫЙ URL (убран лишний слеш, решает проблему со скриншота 3)
                 const response = await fetch(`/survey/${surveyId}/submit/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        // Получаем CSRF токен из куки или из скрытого поля формы
                         'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken')
                     },
                     body: JSON.stringify({ answers: answers })

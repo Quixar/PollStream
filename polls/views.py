@@ -363,21 +363,16 @@ def edit_survey(request, survey_id):
     }
     return render(request, 'polls/create_survey.html', context)
 
+
 def survey_detail(request, survey_id):
     survey = get_object_or_404(Survey, id=survey_id)
-    
-    # Check if user is author or has valid token
-    token = request.GET.get('token')
-    if survey.author != request.user and (not token or not SurveyLink.objects.filter(survey=survey, token=token, is_active=True).exists()):
-        if not request.user.is_authenticated:
-            return redirect('login')
-        raise Http404("Survey not found")
-    
+
     state_data = survey.state_json if survey.state_json else {"pages": []}
+
     context = {
         'survey': survey,
-        'state_json': json.dumps(state_data, ensure_ascii=False),
-        'is_author': survey.author == request.user,
+        'state_json': json.dumps(state_data, ensure_ascii=False),  #
+        'is_author': survey.author == request.user if request.user.is_authenticated else False,  #
     }
     return render(request, 'polls/survey_view.html', context)
 
@@ -568,56 +563,50 @@ def survey_settings(request, survey_id):
 
 @login_required
 def survey_responses(request, survey_id):
-    """Страница для управления ответами и распространением опроса."""
     survey = get_object_or_404(Survey, id=survey_id, author=request.user)
-    
-    # Генерируем или получаем ссылку
-    survey_link, _ = SurveyLink.objects.get_or_create(
-        survey=survey,
-        defaults={'token': uuid4().hex}
-    )
-    
+
+    question_map = {}
+    if survey.state_json and 'pages' in survey.state_json:
+        for page in survey.state_json['pages']:
+            for q in page.get('questions', []):
+                question_map[q['id']] = q.get('title', 'Без названия')
+
     responses = survey.responses.all().order_by('-submitted_at')
-    
+    survey_url = request.build_absolute_uri(f'/survey/{survey.id}/')
+
     context = {
         'survey': survey,
-        'survey_link': survey_link,
+        'survey_url': survey_url,
         'response_count': responses.count(),
-        'responses': responses[:10],  # Последние 10 ответов
-        'response_json': json.dumps({
-            'total': responses.count(),
-            'responses': [
-                {
-                    'id': r.id,
-                    'submitted_at': r.submitted_at.strftime('%d.%m.%Y %H:%M'),
-                    'answers': r.answers_json
-                } for r in responses[:10]
-            ]
-        }, ensure_ascii=False)
+        'responses': responses,
+        'question_map': question_map,
     }
     return render(request, 'polls/survey_responses.html', context)
 
 
 @login_required
 def survey_results(request, survey_id):
-    """Страница с результатами опроса."""
     survey = get_object_or_404(Survey, id=survey_id, author=request.user)
-    responses = survey.responses.all()
-    
-    # Анализ ответов
+
+    responses = survey.responses.all().order_by('-submitted_at')
     response_count = responses.count()
-    
-    # Подготовка данных для графиков
+
+    question_map = {}
+    if survey.state_json and 'pages' in survey.state_json:
+        for page in survey.state_json['pages']:
+            for q in page.get('questions', []):
+                question_map[q['id']] = q.get('title', 'Вопрос без заголовка')
+
     responses_by_date = {}
     for resp in responses:
-        date = resp.submitted_at.date()
-        date_str = date.strftime('%d.%m.%Y')
+        date_str = resp.submitted_at.strftime('%d.%m.%Y')
         responses_by_date[date_str] = responses_by_date.get(date_str, 0) + 1
-    
+
     context = {
         'survey': survey,
-        'response_count': response_count,
-        'responses_by_date': json.dumps(responses_by_date, ensure_ascii=False),
         'responses': responses,
+        'response_count': response_count,
+        'question_map': question_map,
+        'responses_by_date': json.dumps(responses_by_date, ensure_ascii=False),
     }
     return render(request, 'polls/survey_results.html', context)
