@@ -24,18 +24,18 @@
           <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
                       {% if user.is_authenticated %}bg-indigo-600 text-white{% else %}bg-gray-400 text-white{% endif %}">
             {% if user.is_authenticated %}
-              {{ user.username|slice:":1"|upper }}
+              {{ user.get_full_name|default:user.username|slice:":1"|upper }}
             {% else %}
               G
             {% endif %}
           </div>
-          <span class="text-base text-gray-700">
-            {% if user.is_authenticated %}
-              {{ user.username }}
-            {% else %}
-              Guest
-            {% endif %}
-          </span>
+              <span class="text-base text-gray-700">
+                  {% if user.is_authenticated %}
+                    {{ user.get_full_name|default:user.username }}
+                  {% else %}
+                    Guest
+                  {% endif %}
+                </span>
           <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
           </svg>
