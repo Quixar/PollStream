@@ -72,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.state = {
     pages: [],
     currentPageId: null,
+    pageSortType: 'creation', // 'creation' или 'alpha'
   };
 
   function getCurrentPage() {
@@ -124,10 +125,33 @@ document.addEventListener('DOMContentLoaded', () => {
     addPage('Главная страница', true);
   }
 
+  function getSortedPages() {
+    const pages = [...window.state.pages];
+    
+    switch (window.state.pageSortType) {
+      case 'creation':
+        // Сортируем по дате создания (ID содержит timestamp)
+        return pages.sort((a, b) => {
+          const aTime = parseInt(a.id.split('_')[0]) || 0;
+          const bTime = parseInt(b.id.split('_')[0]) || 0;
+          return bTime - aTime; // Новые первыми
+        });
+      case 'alpha':
+        // Сортируем по названию A-Z
+        return pages.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
+      default:
+        return pages;
+    }
+  }
+
   function renderPages() {
     if (!pagesList) return;
     pagesList.innerHTML = '';
-    window.state.pages.forEach((page) => {
+    
+    // Используем отсортированные страницы
+    const sortedPages = getSortedPages();
+    
+    sortedPages.forEach((page) => {
       const isActive = page.id === window.state.currentPageId;
       const pageEl = document.createElement('div');
       pageEl.className = `border-2 rounded-lg p-4 bg-white cursor-pointer transition ${isActive ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`;
@@ -245,6 +269,14 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPages();
   }
 
+  // Глобальная функция для смены сортировки страниц
+  window.setPageSortType = function(sortType) {
+    console.log('Setting page sort to:', sortType);
+    window.state.pageSortType = sortType;
+    saveToLocalStorage();
+    renderPages();
+  };
+
   function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -352,6 +384,13 @@ document.addEventListener('DOMContentLoaded', () => {
     addElementBtn.addEventListener('click', openAddQuestionModal);
     startHereBtn.addEventListener('click', openAddQuestionModal);
     if (closeAddQuestionBtn) closeAddQuestionBtn.addEventListener('click', closeAddQuestionModal);
+    if (addPageBtn) addPageBtn.addEventListener('click', () => addPage('', true));
+
+    // Синхронизируем select для сортировки страниц
+    const pageSortSelect = document.getElementById('pageSortSelect');
+    if (pageSortSelect) {
+      pageSortSelect.value = window.state.pageSortType;
+    }
 
     document.querySelectorAll('.question-type-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -391,6 +430,101 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.target.classList.contains('add-option')) { q.options.push(`Вариант ${q.options.length + 1}`); renderQuestions(); saveToLocalStorage(); }
       if (e.target.classList.contains('remove-option')) { q.options.splice(e.target.dataset.optIndex, 1); renderQuestions(); saveToLocalStorage(); }
     });
+
+    // Обработчик удаления страницы
+    pagesList.addEventListener('click', (e) => {
+      if (e.target.closest('.delete-page-btn')) {
+        const btn = e.target.closest('.delete-page-btn');
+        const pageId = btn.getAttribute('data-page-id');
+        
+        // Получаем survey_id из DOM
+        const surveyDataContainer = document.querySelector('[data-survey-name]');
+        const surveyId = surveyDataContainer?.getAttribute('data-survey-id');
+        
+        // Если survey_id есть и опрос сохранён в БД, удаляем страницу на сервере
+        if (surveyId) {
+          deletePageFromDB(surveyId, pageId);
+        } else {
+          // Если это новый опрос (не сохранён в БД), просто удаляем локально
+          deletePageLocally(pageId);
+        }
+      }
+    });
+
+    // Обработчик изменения названия страницы
+    pagesList.addEventListener('input', (e) => {
+      if (e.target.classList.contains('page-title-input')) {
+        const pageId = e.target.getAttribute('data-page-id');
+        const page = window.state.pages.find(p => p.id === pageId);
+        if (page) {
+          page.title = e.target.value;
+          saveToLocalStorage();
+        }
+      }
+    });
+
+    function deletePageLocally(pageId) {
+      window.state.pages = window.state.pages.filter(p => p.id !== pageId);
+      if (window.state.currentPageId === pageId) {
+        window.state.currentPageId = window.state.pages.length > 0 ? window.state.pages[0].id : null;
+      }
+      saveToLocalStorage();
+      renderPages();
+      renderQuestions();
+    }
+
+    function deletePageFromDB(surveyId, pageId) {
+      console.log('=== deletePageFromDB START ===');
+      console.log('Survey ID:', surveyId);
+      console.log('Page ID:', pageId);
+      
+      if (!confirm("Вы точно хотите удалить эту страницу? Все вопросы на странице будут потеряны.")) {
+        console.log('Deletion cancelled by user');
+        return;
+      }
+
+      const csrfToken = getCookie('csrftoken');
+      const deleteUrl = `/survey/${surveyId}/delete-page/${pageId}/`;
+      
+      console.log('Fetch URL:', deleteUrl);
+      
+      fetch(deleteUrl, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrfToken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ page_id: pageId })
+      })
+      .then(res => {
+        console.log('Response status:', res.status);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        console.log('Response data:', data);
+        
+        if (data.status === 'success') {
+          console.log('✓ Page deleted from DB successfully');
+          
+          // Удаляем страницу локально
+          deletePageLocally(pageId);
+          
+          console.log('✓ Page removed from UI and localStorage');
+          alert('✓ Страница успешно удалена');
+        } else {
+          alert('❌ Ошибка: ' + (data.message || 'Неизвестная ошибка'));
+          console.error('Delete failed:', data);
+        }
+      })
+      .catch(err => {
+        console.error('Delete error:', err);
+        alert('❌ Ошибка удаления: ' + err.message);
+      })
+      .finally(() => {
+        console.log('=== deletePageFromDB END ===');
+      });
+    }
 
     initSurveyState();
     renderPages();

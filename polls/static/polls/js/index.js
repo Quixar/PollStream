@@ -1,5 +1,117 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // Modal Management System
+  // ===== SURVEY SORTING SYSTEM =====
+  class SurveySortManager {
+    constructor() {
+      this.sortSelect = document.getElementById('sortSelect');
+      this.surveysContainer = document.getElementById('surveysContainer');
+      this.surveys = [];
+      this.currentSort = 'date_desc'; // default
+      
+      this.init();
+    }
+
+    init() {
+      if (!this.sortSelect || !this.surveysContainer) return;
+      
+      // Загружаем сохранённую сортировку
+      this.currentSort = localStorage.getItem('surveySort') || 'date_desc';
+      this.sortSelect.value = this.currentSort;
+      
+      // Читаем опросы из DOM
+      this.loadSurveysFromDOM();
+      
+      // Привязываем обработчик выбора
+      this.sortSelect.addEventListener('change', (e) => this.onSortChange(e));
+      
+      // Применяем сохранённую сортировку
+      this.applySorting(this.currentSort);
+      
+      console.log('SurveySortManager initialized with', this.surveys.length, 'surveys');
+    }
+
+    loadSurveysFromDOM() {
+      // Читаем все опросы из контейнера
+      const surveyElements = this.surveysContainer.querySelectorAll('[id^="survey-"]');
+      
+      this.surveys = Array.from(surveyElements).map(el => {
+        const surveyId = el.id.replace('survey-', '');
+        const nameEl = el.querySelector('h3');
+        const dateEl = el.querySelector('p.text-sm.text-gray-500');
+        
+        const name = nameEl ? nameEl.textContent.trim() : 'Безимённый';
+        const dateText = dateEl ? dateEl.textContent.replace('Создано:', '').trim() : '';
+        
+        // Парсим дату в формате "d.m.Y в H:i"
+        const dateObj = this.parseDate(dateText);
+        
+        return {
+          id: surveyId,
+          name: name,
+          dateText: dateText,
+          date: dateObj,
+          element: el
+        };
+      });
+      
+      console.log('Loaded surveys:', this.surveys);
+    }
+
+    parseDate(dateStr) {
+      // Формат: "d.m.Y в H:i" (например: "6.03.2026 в 15:30")
+      if (!dateStr) return new Date(0);
+      
+      const match = dateStr.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})\s+в\s+(\d{1,2}):(\d{2})/);
+      if (!match) return new Date(0);
+      
+      const [, day, month, year, hours, minutes] = match;
+      return new Date(year, month - 1, day, hours, minutes);
+    }
+
+    applySorting(sortType) {
+      const sortedSurveys = this.getSortedSurveys(sortType);
+      
+      // Очищаем контейнер и добавляем отсортированные элементы
+      this.surveysContainer.innerHTML = '';
+      sortedSurveys.forEach(survey => {
+        this.surveysContainer.appendChild(survey.element);
+      });
+      
+      console.log('Applied sorting:', sortType);
+    }
+
+    getSortedSurveys(sortType) {
+      const surveys = [...this.surveys];
+      
+      switch (sortType) {
+        case 'date_desc':
+          return surveys.sort((a, b) => b.date - a.date); // Новые первыми
+        case 'date_asc':
+          return surveys.sort((a, b) => a.date - b.date); // Старые первыми
+        case 'alpha_asc':
+          return surveys.sort((a, b) => a.name.localeCompare(b.name, 'ru')); // А-Я
+        case 'alpha_desc':
+          return surveys.sort((a, b) => b.name.localeCompare(a.name, 'ru')); // Я-А
+        default:
+          return surveys;
+      }
+    }
+
+    onSortChange(e) {
+      this.currentSort = e.target.value;
+      localStorage.setItem('surveySort', this.currentSort);
+      this.applySorting(this.currentSort);
+      console.log('Sort changed to:', this.currentSort);
+    }
+
+    // Метод для обновления при добавлении нового опроса
+    refreshSurveys() {
+      console.log('Refreshing surveys...');
+      this.loadSurveysFromDOM();
+      this.applySorting(this.currentSort);
+    }
+  }
+
+  // ===== MODAL MANAGEMENT SYSTEM =====
   class ModalManager {
     constructor() {
       this.initElements();
@@ -137,6 +249,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   }
 
+  // Initialize survey sort manager (for sorting surveys on index page)
+  new SurveySortManager();
+  
   // Initialize modal manager when DOM is ready
   new ModalManager();
 });

@@ -11,7 +11,10 @@ from .forms import RegistrationForm
 from django.contrib.auth.forms import UserCreationForm
 from .forms import ProfileUpdateForm
 from django.utils.dateparse import parse_datetime
-
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
 
 
 import json
@@ -194,6 +197,127 @@ def save_survey(request):
         return JsonResponse({'status': 'success', 'survey_id': survey.id, 'finalized': finalize})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def delete_survey(request, survey_id):
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.info(f"Delete request from user {request.user.id} for survey {survey_id}")
+        
+        # Получаем опрос
+        try:
+            survey = Survey.objects.get(id=survey_id)
+        except Survey.DoesNotExist:
+            logger.error(f"Survey {survey_id} not found")
+            return JsonResponse({'status': 'error', 'message': 'Опрос не найден'}, status=404)
+        
+        # Проверяем права доступа
+        if survey.author != request.user:
+            logger.warning(f"User {request.user.id} tried to delete survey {survey_id} owned by {survey.author.id}")
+            return JsonResponse({'status': 'error', 'message': 'У вас нет прав на удаление'}, status=403)
+        
+        survey_name = survey.name
+        survey_id_for_log = survey.id
+        
+        # Удаляем все связанные объекты вручную для лучшей отладки
+        logger.info(f"Deleting {survey.responses.count()} responses for survey {survey_id_for_log}")
+        survey.responses.all().delete()
+        
+        logger.info(f"Deleting {survey.links.count()} links for survey {survey_id_for_log}")
+        survey.links.all().delete()
+        
+        # Удаляем сам опрос
+        logger.info(f"Deleting survey {survey_id_for_log}: {survey_name}")
+        survey.delete()
+        
+        logger.info(f"Successfully deleted survey {survey_id_for_log}: {survey_name}")
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Опрос "{survey_name}" успешно удалён из базы данных',
+            'survey_id': survey_id_for_log
+        })
+        
+    except Exception as e:
+        logger.exception(f"Unexpected error deleting survey {survey_id}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Ошибка при удалении: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_POST
+def delete_survey_page(request, survey_id, page_id):
+    """Удаляет страницу из опроса и обновляет БД"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.info(f"Delete page request from user {request.user.id}: survey={survey_id}, page_id={page_id}")
+        
+        # Получаем опрос
+        try:
+            survey = Survey.objects.get(id=survey_id)
+        except Survey.DoesNotExist:
+            logger.error(f"Survey {survey_id} not found")
+            return JsonResponse({'status': 'error', 'message': 'Опрос не найден'}, status=404)
+        
+        # Проверяем права доступа
+        if survey.author != request.user:
+            logger.warning(f"User {request.user.id} tried to delete page in survey {survey_id} owned by {survey.author.id}")
+            return JsonResponse({'status': 'error', 'message': 'У вас нет прав'}, status=403)
+        
+        # Получаем текущее состояние опроса
+        if not survey.state_json:
+            logger.error(f"Survey {survey_id} has no state_json")
+            return JsonResponse({'status': 'error', 'message': 'Состояние опроса не найдено'}, status=400)
+        
+        state = survey.state_json
+        
+        # Находим и удаляем страницу из состояния
+        pages = state.get('pages', [])
+        initial_count = len(pages)
+        pages = [p for p in pages if p.get('id') != page_id]
+        final_count = len(pages)
+        
+        if initial_count == final_count:
+            logger.warning(f"Page {page_id} not found in survey {survey_id}")
+            return JsonResponse({'status': 'error', 'message': 'Страница не найдена'}, status=404)
+        
+        logger.info(f"Found and removed page {page_id} from survey {survey_id}")
+        
+        # Если удалена текущая страница, переключаемся на первую (если она есть)
+        current_page_id = state.get('currentPageId')
+        if current_page_id == page_id:
+            new_current_id = pages[0].get('id') if pages else None
+            state['currentPageId'] = new_current_id
+            logger.info(f"Current page was deleted, switched to: {new_current_id}")
+        
+        # Обновляем состояние
+        state['pages'] = pages
+        survey.state_json = state
+        survey.save()
+        
+        logger.info(f"Successfully deleted page {page_id} from survey {survey_id} and saved to DB")
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Страница успешно удалена',
+            'page_id': page_id,
+            'current_page_id': state.get('currentPageId')
+        })
+        
+    except Exception as e:
+        logger.exception(f"Unexpected error deleting page {page_id} from survey {survey_id}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Ошибка при удалении страницы: {str(e)}'
+        }, status=500)
 
 
 @ensure_csrf_cookie
