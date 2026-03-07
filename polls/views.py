@@ -409,7 +409,9 @@ def login_view(request):
 
         if user is not None:
             login(request, user)
-            return redirect("dashboard_home")
+            if user is not None:
+                login(request, user)
+                return redirect("index")
         else:
             messages.error(request, "Invalid username or password")
 
